@@ -274,3 +274,178 @@ En log de la consola, observamos nuestra consulta `SQL` que se ha ejecutado:
     FROM
         employees AS e 
 ````
+
+## Listando empleados con proyección y paginación
+
+Dentro de la interfaz `EmployeeRepository` crearemos un método personalizado usando la anotación `Query`, donde nos
+devolverá un `Page` de nuestra proyección `BasicEmployeeInformationProjection`. Este método recibirá un `Pageable`
+donde se definirán algunos parámetros de paginación como el `pageNumber`, `pageSize`:
+
+````java
+public interface EmployeeRepository extends JpaRepository<Employee, Long> {
+    /* other method */
+
+    @Query(value = """
+            SELECT e.first_name AS firstName,
+                    e.last_name AS lastName,
+                    e.email AS email,
+                    e.phone_number AS phoneNumber
+            FROM employees AS e
+            """,
+            countQuery = """
+                    SELECT COUNT(*)
+                    FROM employees
+                    """,
+            nativeQuery = true)
+    Page<BasicEmployeeInformationProjection> findEmployeesBasicInformationPage(Pageable pageable);
+}
+````
+
+Nuestra interfaz anterior sigue extendiendo de `JpaRepository`, pero para este caso en particular, necesitamos crear
+nuestro método personalizado de consulta que recibirá un `Pageable` y retornará un `Page`.
+
+Si observamos la anotación `Query` en el atributo `value` definimos nuestra consulta con las columnas que queremos
+recuperar y que están acorde a los métodos definidos en nuestra proyección `BasicEmployeeInformationProjection`.
+Además, observamos una consulta adicional en el atributo `countQuery`.
+
+El `countQuery`, define una consulta de recuento especial que se utilizará para `consultas de paginación` para buscar
+el número total de elementos de una página. **Si no hay ninguno configurado, derivaremos la consulta de recuento de la
+consulta original o de la consulta countProjection(), si corresponde.** En nuestro caso, si no hubiéramos definido la
+consulta en el atributo `countQuery`, automáticamente jpa habría generado la siguiente consulta para dicho atributo:
+
+````sql
+select
+    count(1) 
+FROM
+    employees AS e
+````
+
+En nuestro caso, sí estamos definiendo explícitamente la consulta en el atributo `countQuery`:
+
+````sql
+SELECT COUNT(*)
+FROM employees
+````
+
+En el `EmployeeService` definimos un nuevo método, el cual lo implementaremos en el `EmployeeServiceImpl`:
+
+````java
+public interface EmployeeService {
+    /* other method */
+    Page<BasicEmployeeInformationProjection> findEmployeesBasicInformationPagination(Pageable pageable);
+}
+````
+
+````java
+
+@RequiredArgsConstructor
+@Slf4j
+@Service
+public class EmployeeServiceImpl implements EmployeeService {
+
+    private final EmployeeRepository employeeRepository;
+
+    /* other method */
+
+    @Override
+    public Page<BasicEmployeeInformationProjection> findEmployeesBasicInformationPagination(Pageable pageable) {
+        return this.employeeRepository.findEmployeesBasicInformationPage(pageable);
+    }
+}
+````
+
+Finalmente, creamos un endpoint en nuestro controlador para llamar al método del servicio anterior:
+
+````java
+
+@RequiredArgsConstructor
+@Slf4j
+@RestController
+@RequestMapping(path = "/api/v1/employees")
+public class EmployeeRestController {
+
+    private final EmployeeService employeeService;
+
+    /* method */
+
+    @GetMapping(path = "/basic-information-pagination")
+    public ResponseEntity<Page<BasicEmployeeInformationProjection>> findEmployeesBasicInformationPagination(
+            @RequestParam(name = "pageNumber", defaultValue = "0", required = false) int pageNumber,
+            @RequestParam(name = "pageSize", defaultValue = "5", required = false) int pageSize) {
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        return ResponseEntity.ok(this.employeeService.findEmployeesBasicInformationPagination(pageable));
+    }
+}
+````
+
+### Resultados obtenidos
+
+````bash
+$ curl -v http://localhost:8080/api/v1/employees/basic-information-pagination | jq
+
+>
+< HTTP/1.1 200
+<
+{
+  "content": [
+    {
+      "phoneNumber": "963258969",
+      "email": "almagro@gmail.com",
+      "firstName": "Martín",
+      "lastName": "Almagro"
+    },
+    {...},
+    {...},
+    {...},
+    {
+      "phoneNumber": "953689596",
+      "email": "mgonzales@gmail.com",
+      "firstName": "Liz",
+      "lastName": "Gonzales"
+    }
+  ],
+  "pageable": {
+    "pageNumber": 0,
+    "pageSize": 5,
+    "sort": {
+      "sorted": false,
+      "empty": true,
+      "unsorted": true
+    },
+    "offset": 0,
+    "unpaged": false,
+    "paged": true
+  },
+  "last": false,
+  "totalPages": 3,
+  "totalElements": 11,
+  "size": 5,
+  "number": 0,
+  "sort": {
+    "sorted": false,
+    "empty": true,
+    "unsorted": true
+  },
+  "numberOfElements": 5,
+  "first": true,
+  "empty": false
+}
+````
+
+````bash
+2024-03-07T12:59:24.665-05:00 DEBUG 10488 --- [spring-data-jpa-advanced] [nio-8080-exec-1] org.hibernate.SQL                        : 
+    SELECT
+        e.first_name AS firstName,
+        e.last_name AS lastName,
+        e.email AS email,
+        e.phone_number AS phoneNumber 
+    FROM
+        employees AS e 
+    limit
+        ? 
+2024-03-07T12:59:24.727-05:00 DEBUG 10488 --- [spring-data-jpa-advanced] [nio-8080-exec-1] org.hibernate.SQL                        : 
+    SELECT
+        COUNT(*) 
+    FROM
+        employees
+````

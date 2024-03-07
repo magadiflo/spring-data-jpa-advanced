@@ -5,6 +5,8 @@ import dev.magadiflo.jpa.app.persistence.repository.EmployeeRepository;
 import dev.magadiflo.jpa.app.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,5 +23,10 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Transactional(readOnly = true)
     public List<BasicEmployeeInformationProjection> findEmployeesBasicInformation() {
         return this.employeeRepository.findEmployeesBasicInformation();
+    }
+
+    @Override
+    public Page<BasicEmployeeInformationProjection> findEmployeesBasicInformationPagination(Pageable pageable) {
+        return this.employeeRepository.findEmployeesBasicInformationPage(pageable);
     }
 }
