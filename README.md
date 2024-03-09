@@ -72,7 +72,10 @@ spring:
 
 logging:
   level:
+    # Para mostrar el SQL generado
     org.hibernate.SQL: DEBUG
+    # Para mostrar el valor de los parámetros que pasamos a una consulta
+    org.hibernate.orm.jdbc.bind: TRACE
 ````
 
 ## Entidades
