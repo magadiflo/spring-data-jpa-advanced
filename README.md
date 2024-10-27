@@ -452,3 +452,110 @@ $ curl -v http://localhost:8080/api/v1/employees/basic-information-pagination | 
     FROM
         employees
 ````
+
+---
+
+# Claves primarias compuestas
+
+---
+
+En la medida en que utilizamos bases de datos relacionales, tenemos que considerar los campos clave que actúan como
+identificadores de la tabla. Además de las claves primarias habituales, la clave compuesta desempeña un papel
+específico, ya que varios candidatos generan colectivamente el identificador.
+
+En `JPA (Java Persistence API)`, hay dos formas de especificar claves compuestas de entidad: `@IdClass` y `@EmbeddedId`.
+
+## [Claves primarias compuestas con @IdClass](https://www.oscarblancarteblog.com/2016/11/02/llaves-compuestas-idclass/)
+
+En este apartado explicaremos cómo manejamos la relación de clave compuesta en la aplicación Java Spring Boot
+utilizando la anotación `@Idclass`.
+
+La utilización de `@IdClass` es una de las dos opciones para definir `claves primarias compuestas`, y esta consiste en
+crear una clase adicional únicamente con los campos que corresponden a la clave primaria.
+
+Veamos un caso concreto, normalmente un empleado puede tener más de un teléfono, entonces, podríamos crear una tabla
+donde la `clave primaria` sea el `ID del empleado` y el `tipo de teléfono`, de esta forma nos aseguramos de tener solo
+un tipo de teléfono por empleado.
+
+Empecemos creando una clase de enumeración para tener bien definido los tipos de teléfonos que manejará nuestra entidad.
+
+````java
+public enum TelephoneType {
+    MOBILE, HOUSE, WORK, FAX, OTHER
+}
+````
+
+Veamos cómo quedaría la clase `PK` con los atributos que formarán parte de nuestra `clave primaria compuesta`. Algo
+que podría resaltar aquí es que el atributo `telephoneType` podríamos haberlo definido como un `String`, pero para
+acotar los tipos de teléfono a manejar y no escribir cualquier cadena, es que lo he definido del tipo `enum`.
+
+````java
+
+@EqualsAndHashCode
+@Setter
+@Getter
+public class TelephonePK {
+    private Long employeeId;
+    private TelephoneType telephoneType;
+}
+````
+
+Definimos la clase `TelephonePK`, quien tiene como atributos el `employeeId` y el `telephoneType`.
+Observemos que esta clase no requiere de ningún tipo de anotación especial, pero `sí es requerido` sobrescribir los
+métodos `hashCode & equals`, en nuestro caso eso lo hacemos con la anotación de lombok `@EqualsAndHashCode`. Además,
+aprovechamos el poder de lombok para generar los `@Getter` y `@Setter`. Es decir, si no hubiéramos usado esas
+anotaciones de lombok, simplemente habríamos escrito mano el código que representan. Más allá de eso, esta clase
+no requiere ninguna anotación especial.
+
+La siguiente clase que definimos es la entidad `Telephone`, quien representa un teléfono de empleado.
+
+````java
+
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Setter
+@Getter
+@IdClass(TelephonePK.class)
+@Entity
+@Table(name = "telephones")
+public class Telephone {
+    @Id
+    private Long employeeId;
+    @Id
+    @Enumerated(EnumType.STRING)
+    private TelephoneType telephoneType;
+
+    private String number;
+}
+````
+
+Observemos que esta clase cuenta con los atributos `employeeId` y `telephoneType` anotados con `@Id`. Además, tiene la
+anotación `@IdClass` a nivel de clase y como valor tiene la clase `TelephonePK.class`.
+
+Un dato importante es que tanto la definición de los atributos en la clase ID (`TelephonePK`) como en la clase
+de entidad (`Telephone`) deben de coincidir a la perfección en caso contrario provocara un error en tiempo de ejecución.
+
+Según la documentación dice:
+
+> `@IdClass`, especifica una `clase de clave principal compuesta` que se asigna a varios campos o propiedades de la
+> entidad. Los nombres de los campos o propiedades de la clase de clave principal y los campos o propiedades de clave
+> principal de la entidad deben corresponderse y sus tipos deben ser los mismos.
+
+Tras aplicar estos últimos cambios, ejecutamos la aplicación y vemos en el log, la creación de la tabla `telephones`
+y como `clave primaria compuesta` la combinación de `(employee_id, telephone_type)`.
+
+````bash
+2024-10-27T00:17:18.848-05:00 DEBUG 17732 --- [spring-data-jpa-advanced] [           main] org.hibernate.SQL                        : 
+    create table telephones (
+        employee_id bigint not null,
+        number varchar(255),
+        telephone_type enum ('MOBILE','HOUSE','WORK','FAX','OTHER') not null,
+        primary key (employee_id, telephone_type)
+    ) engine=InnoDB
+````
+
+Observamos en la tabla que nuestra clave primaria compuesta se ha creado correctamente.
+
+![02.png](assets/02.png)
