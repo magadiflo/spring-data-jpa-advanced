@@ -1,6 +1,8 @@
 package dev.magadiflo.jpa.app.service.impl;
 
 import dev.magadiflo.jpa.app.model.projection.BasicEmployeeInformationProjection;
+import dev.magadiflo.jpa.app.persistence.entity.EmployeeDetail;
+import dev.magadiflo.jpa.app.persistence.repository.EmployeeDetailRepository;
 import dev.magadiflo.jpa.app.persistence.repository.EmployeeRepository;
 import dev.magadiflo.jpa.app.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import java.util.List;
 public class EmployeeServiceImpl implements EmployeeService {
 
     private final EmployeeRepository employeeRepository;
+    private final EmployeeDetailRepository employeeDetailRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -28,5 +31,10 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     public Page<BasicEmployeeInformationProjection> findEmployeesBasicInformationPagination(Pageable pageable) {
         return this.employeeRepository.findEmployeesBasicInformationPage(pageable);
+    }
+
+    @Override
+    public List<EmployeeDetail> findAllEmployeeDetails() {
+        return this.employeeDetailRepository.findAll();
     }
 }

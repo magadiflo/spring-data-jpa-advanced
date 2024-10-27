@@ -1,6 +1,7 @@
 package dev.magadiflo.jpa.app.web.api;
 
 import dev.magadiflo.jpa.app.model.projection.BasicEmployeeInformationProjection;
+import dev.magadiflo.jpa.app.persistence.entity.EmployeeDetail;
 import dev.magadiflo.jpa.app.service.EmployeeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,5 +35,10 @@ public class EmployeeRestController {
             @RequestParam(name = "pageSize", defaultValue = "5", required = false) int pageSize) {
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
         return ResponseEntity.ok(this.employeeService.findEmployeesBasicInformationPagination(pageable));
+    }
+
+    @GetMapping(path = "/details")
+    public ResponseEntity<List<EmployeeDetail>> findAllEmployeeDetails() {
+        return ResponseEntity.ok(this.employeeService.findAllEmployeeDetails());
     }
 }
