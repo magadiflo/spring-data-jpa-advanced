@@ -559,3 +559,83 @@ y como `clave primaria compuesta` la combinación de `(employee_id, telephone_ty
 Observamos en la tabla que nuestra clave primaria compuesta se ha creado correctamente.
 
 ![02.png](assets/02.png)
+
+## [Claves primarias compuestas con @EmbeddedId](https://www.oscarblancarteblog.com/2016/11/08/embeber-llave-primaria-embeddedid/)
+
+Otra manera de definir `claves primarías compuestas` es con la anotación `@EmbeddedId`, quien anota a una clase
+como `ID`. A diferencia de `@IdClass`, este método no requiere definir los atributos de la clave primaria en la entidad,
+sino que solo hace falta agregar como atributo la clase que contiene todos los campos.
+
+Una diferencia que tiene este método con respecto al `@IdClass`, es qué es necesario que la clase `ID` esté
+anotada a nivel de clase con la anotación `@Embeddable`. Esto le dice a `JPA` que esta clase se puede embeber
+dentro de otra.
+
+Creamos la clase `OrderItemPK` que contendrá las claves primarias compuestas `orderId` y `productId`.
+
+````java
+
+@AllArgsConstructor
+@NoArgsConstructor
+@EqualsAndHashCode
+@Setter
+@Getter
+@Embeddable
+public class OrderItemPK {
+    private Long orderId;
+    private Long productId;
+}
+````
+
+Observemos primero que nada que se le agregó la anotación `@Embeddable` a nivel de clase y los métodos equals y hashCode
+con la anotación de lombok `@EqualsAndHashCode`.
+
+Ahora creamos la entidad `OrderItem` que incluirá la clase `OrderItemPK` como identificador.
+
+````java
+
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Setter
+@Getter
+@Entity
+@Table(name = "order_items")
+public class OrderItem {
+
+    @EmbeddedId
+    private OrderItemPK id;
+
+    private Integer quantity;
+    private Double price;
+}
+````
+
+Observemos que como identificador usamos la clase `OrderItemPK` a quien lo anotamos con `@EmbeddedId`.
+
+La anotación `@EmbeddedId` provocará que los campos definidos en la clase `OrderItemPK` sean considerados como
+si fueran parte de la clase `OrderItem`.
+
+Cabe mencionar que tanto `@IdClass` como `@EmbeddedId` darán el mismo resultado en tiempo de ejecución, por lo que
+la única diferencia es solo a nivel del código. Recordemos que con `@IdClass` es necesario definir los campos que serán
+la clave primaria tanto en la entidad como en las clases Id, en cambio, con `@EmbeddedId` solo será necesario embeber
+la clave como una propiedad más de la clase. Particularmente yo prefiero trabajar con `@EmbeddedId` para evitar
+repetir atributos.
+
+Ahora, si ejecutamos la aplicación veremos el siguiente resultado en consola.
+
+````bash
+2024-10-27T01:11:28.953-05:00 DEBUG 11236 --- [spring-data-jpa-advanced] [           main] org.hibernate.SQL                        : 
+    create table order_items (
+        price float(53),
+        quantity integer,
+        order_id bigint not null,
+        product_id bigint not null,
+        primary key (order_id, product_id)
+    ) engine=InnoDB
+````
+
+Observamos que se nos ha creado correctamente la clave primaria compuesta `(order_id, product_id)`. Ahora, si revisamos
+la tabla en la base de datos obtendremos gráficamente el mismo resultado.
+
+![03.png](assets/03.png)
